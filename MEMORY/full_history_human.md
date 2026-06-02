@@ -345,3 +345,17 @@ README bumped from 36 to 41 tests for github-gists and the error-message contrac
 **Open questions / blockers:** none.
 
 **Next session:** continue portfolio propagation.
+
+## 2026-06-02 — Issue #44: validateDbConfig + broaden validateGistsConfig
+**Duration:** ~30 min · **Branch:** `session/2026-06-02-0326-issue-44`
+
+- `postgres-readonly`: new `validateDbConfig(cfg)` invoked at the top of `withClient` before any pg client construction. Rejects empty `connectionString`, non-positive `maxRows`, non-positive `statementTimeoutMs`. The last is security-relevant — Postgres treats `statement_timeout = 0` as **no timeout**, so a programmatic `0` would silently disable the per-query timeout the threat model relies on. Error message names that semantics directly so operators reading the throw understand the *why*. 23 new tests in `test/db.test.ts`; integration tests prove the gate fires before any DB I/O attempt.
+- `github-gists`: broadens the constructor-entry validation from #34's timeoutMs-only check to the full four-field `GistsConfig` contract — `baseUrl` (non-empty + `http(s)://`), `userAgent` (non-empty; GitHub rejects no-UA requests outright), `timeoutMs` (positive int, kept as `RangeError` to preserve #34's assertion shape), `token` (`null` or non-empty string). The `token = ""` case was the most insidious silent-degeneracy: `hasToken()` returned `true` on empty string so callers thought auth was configured, but the request went out with an empty bearer header → GitHub returned the unauthenticated rate limit. `client.ts` deletes its local `validateConfig` in favor of importing `validateGistsConfig` from `config.ts` — one source of truth for the contract. 15 new tests in `test/config.test.ts`.
+- Both READMEs gained a "Programmatic-entry config validation (#44)" subsection under the threat model, citing D-009 propagation. No new `D-NNN`: this is the same pattern landed in `internal-tools-bridge` (D-009) and the 10 cited sister PRs across the Python portfolio. `filesystem-sandbox` already ships `Sandbox.create` empty-roots gate (D-005/D-006) so no missing surface there; `filesystem-sandbox-py` is the Python parity and out of this PR's scope.
+- Test counts: postgres-readonly 41 → 50, github-gists 43 → 58. `tools/check-readme.mjs` lock caught the stale numbers pre-merge and required the README update. All four TS servers' lint clean; full repo test sweep green (5 tools/*.test.mjs also green).
+
+**Why this work, this session:** Iteration 2 of the night session loop. `mcp-server-cookbook` was untouched since 2026-05-27 (build sequence position 10 among the untouched-stale repos). The D-009 contract-tightening sweep landed across 10 Python sister repos and `internal-tools-bridge` here; two other servers in this same cookbook had structurally identical `Config` types lacking programmatic-entry validation. Closing the gap completes the D-009 propagation arc inside this repo.
+
+**Open questions / blockers:** none — ready for review.
+
+**Next session:** Continue the night-session loop. Remaining untouched-since-2026-05-27 candidates: `nextjs-streaming-ai-patterns`, `ai-app-integration-tests` (both TS).
