@@ -240,7 +240,11 @@ export class GistsClient {
     const endpoint = `/gists/${encodeURIComponent(args.gistId.trim())}`;
     const payload: Record<string, unknown> = {
       files: {
-        [args.filename]: { content: args.content },
+        // Use the trimmed filename as the key, matching the validation above
+        // (which rejects whitespace-only names via `.trim()`) and the gistId
+        // treatment. The raw value sent GitHub a key like "  notes.md  ",
+        // targeting a whitespace-named file instead of the intended one.
+        [args.filename.trim()]: { content: args.content },
       },
     };
     if (args.description !== undefined) {
