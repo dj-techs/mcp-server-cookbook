@@ -201,6 +201,21 @@ describe("GistsClient.updateGistFile", () => {
     });
   });
 
+  it("sends the filename trimmed as the file key (matches the trimmed validation)", async () => {
+    // A whitespace-padded filename passes the `.trim()` non-empty validation, so
+    // it must be sent as the trimmed key — using the raw value targeted a
+    // whitespace-named file ("  notes.md  ") that isn't the intended one.
+    const { fetch, calls } = recordingFetch({
+      status: 200,
+      ok: true,
+      jsonBody: { id: "abc", description: null, public: false, html_url: "u", files: {} },
+    });
+    const client = new GistsClient({ cfg: baseCfg({ token: "tok" }), fetch });
+    await client.updateGistFile({ gistId: "abc", filename: "  notes.md  ", content: "hi" });
+    const parsed = JSON.parse(calls[0].body as string);
+    expect(parsed).toEqual({ files: { "notes.md": { content: "hi" } } });
+  });
+
   it("omits description from the payload when not provided", async () => {
     const { fetch, calls } = recordingFetch({
       status: 200,
